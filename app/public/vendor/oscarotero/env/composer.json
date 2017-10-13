@@ -1,0 +1,28 @@
+{
+    "name": "oscarotero/env",
+    "type": "library",
+    "description": "Simple library to consume environment variables",
+    "keywords": ["env"],
+    "homepage": "https://github.com/oscarotero/env",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Oscar Otero",
+            "email": "oom@oscarotero.com",
+            "homepage": "http://oscarotero.com",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "email": "oom@oscarotero.com",
+        "issues": "https://github.com/oscarotero/env/issues"
+    },
+    "require": {
+        "php": ">=5.2"
+    },
+    "autoload": {
+        "psr-0": {
+            "Env": "src/"
+        }
+    }
+}

@@ -1,0 +1,19 @@
+language: php
+php:
+  - '5.3'
+  - '5.4'
+  - '5.5'
+  - '5.6'
+  - '7.0'
+  - '7.1'
+before_script:
+  - composer update
+script: composer test
+cache:
+  directories:
+    - vendor
+branches:
+  only:
+    - master
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
