@@ -10,7 +10,17 @@ Local Bedrock is a site boilerplate for [Local by Flywheel](https://local.getfly
 5. Enter details for your new site. Make sure to select a **Custom environment** along with **Nginx**
 6. Update `WP_HOME` variable in `app/public/.env` of the newly created site path. Enter the selected domain in the step 5. 
 
-Enjoy!
+Now you have a fully working WordPress Bedrock site on Local by Flywheel.
+
+Before you go on developing the site, save the newly created website as a blueprint.
+
+## Saving as Blueprint
+
+1. Right click on the site name you just created.
+2. Select `Save as Blueprint`.
+3. Click `Save Blueprint` button.
+
+Now whenever you need a clean Bedrock WordPress site, you can just select the saved blueprint from the `Advanced Options` on the new site creation screen in Local by Flywheel.
 
 ## Credentials
 
