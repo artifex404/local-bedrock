@@ -3,7 +3,7 @@ Local Bedrock is a site boilerplate for [Local by Flywheel](https://local.getfly
 
 ## Installation
 
-1. `git clone --depth=1 https://github.com/artifex404/local-bedrock && rm -rf local-bedrock/.git`
+1. `git clone --depth=1 https://github.com/artifex404/local-bedrock && rm -rf local-bedrock/.git local-bedrock/README.md local-bedrock/.gitignore`
 2. `cd local-bedrock && zip -r ../local-bedrock.zip . * && cd ..`
 3. If you're on mac, you can use `open .` to open the current folder in Finder.
 4. Drag and drop `local-bedrock.zip` to the Local by Flywheel application window.
@@ -28,3 +28,16 @@ This site installation creates an WordPress administrator user with the followin
 
 * `User: local-bedrock` 
 * `Password: local-bedrock`
+
+## Optional Database cleanup
+
+If during the site import you chose another domain than the original `local-bedrock.dev`, a few places in the database will still have the old domain.
+
+The items still having the old domain are: `wp_posts` sample posts **guid**, and `wp_options` **siteurl** and **home** variables.
+
+It is not crucial to change the siteurl and home variables values in the dadabase, and the **.env** configuration files override them. 
+
+However, if you want to clean up the old domain name:
+
+1. Right click on the site name in Local by Flywheel on the left sidebar, and select `Open Site SSH`
+2. In the opened terminal write, make sure to replace XXXXX by your newly chosen domain: `cd /app/public && wp search-replace local-bedrock.dev XXXXX --all-tables`
