@@ -529,7 +529,21 @@ final class Tokens
                                          T_ISSET        => T_ISSET,
                                          T_UNSET        => T_UNSET,
                                          T_EMPTY        => T_EMPTY,
+                                         T_SELF         => T_SELF,
+                                         T_STATIC       => T_STATIC,
                                         );
+
+    /**
+     * Tokens that are open class and object scopes.
+     *
+     * @var array<int, int>
+     */
+    public static $ooScopeTokens = array(
+                                    T_CLASS      => T_CLASS,
+                                    T_ANON_CLASS => T_ANON_CLASS,
+                                    T_INTERFACE  => T_INTERFACE,
+                                    T_TRAIT      => T_TRAIT,
+                                   );
 
 
     /**

@@ -18,8 +18,9 @@ use PHP_CodeSniffer\Exceptions\RuntimeException;
 use PHP_CodeSniffer\Ruleset;
 use PHP_CodeSniffer\Files\LocalFile;
 use PHP_CodeSniffer\Util\Common;
+use PHPUnit\Framework\TestCase;
 
-abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
+abstract class AbstractSniffUnitTest extends TestCase
 {
 
     /**
@@ -97,7 +98,7 @@ abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
     /**
      * Should this test be skipped for some reason.
      *
-     * @return void
+     * @return boolean
      */
     protected function shouldSkipTest()
     {
@@ -110,7 +111,7 @@ abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
      * Tests the extending classes Sniff class.
      *
      * @return void
-     * @throws PHPUnit_Framework_Error
+     * @throws \PHPUnit\Framework\Exception
      */
     final public function testSniff()
     {
@@ -139,22 +140,26 @@ abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
         $config->sniffs    = array($sniffCode);
         $config->ignored   = array();
 
-        if (isset($GLOBALS['PHP_CODESNIFFER_RULESET']) === true) {
-            $ruleset = $GLOBALS['PHP_CODESNIFFER_RULESET'];
-
-            $sniffFile = $this->standardsDir.DIRECTORY_SEPARATOR.'Sniffs'.DIRECTORY_SEPARATOR.$categoryName.DIRECTORY_SEPARATOR.$sniffName.'Sniff.php';
-
-            $sniffClassName = substr(get_class($this), 0, -8).'Sniff';
-            $sniffClassName = str_replace('\Tests\\', '\Sniffs\\', $sniffClassName);
-            $sniffClassName = Common::cleanSniffClass($sniffClassName);
-
-            $restrictions = array(strtolower($sniffClassName) => true);
-            $ruleset->registerSniffs(array($sniffFile), $restrictions, array());
-            $ruleset->populateTokenListeners();
-        } else {
-            $ruleset = new Ruleset($config);
-            $GLOBALS['PHP_CODESNIFFER_RULESET'] = $ruleset;
+        if (isset($GLOBALS['PHP_CODESNIFFER_RULESETS']) === false) {
+            $GLOBALS['PHP_CODESNIFFER_RULESETS'] = array();
         }
+
+        if (isset($GLOBALS['PHP_CODESNIFFER_RULESETS'][$standardName]) === false) {
+            $ruleset = new Ruleset($config);
+            $GLOBALS['PHP_CODESNIFFER_RULESETS'][$standardName] = $ruleset;
+        }
+
+        $ruleset = $GLOBALS['PHP_CODESNIFFER_RULESETS'][$standardName];
+
+        $sniffFile = $this->standardsDir.DIRECTORY_SEPARATOR.'Sniffs'.DIRECTORY_SEPARATOR.$categoryName.DIRECTORY_SEPARATOR.$sniffName.'Sniff.php';
+
+        $sniffClassName = substr(get_class($this), 0, -8).'Sniff';
+        $sniffClassName = str_replace('\Tests\\', '\Sniffs\\', $sniffClassName);
+        $sniffClassName = Common::cleanSniffClass($sniffClassName);
+
+        $restrictions = array(strtolower($sniffClassName) => true);
+        $ruleset->registerSniffs(array($sniffFile), $restrictions, array());
+        $ruleset->populateTokenListeners();
 
         $failureMessages = array();
         foreach ($testFiles as $testFile) {
@@ -410,7 +415,7 @@ abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
      * @param string                  $filename The name of the file being tested.
      * @param \PHP_CodeSniffer\Config $config   The config data for the run.
      *
-     * @return array
+     * @return void
      */
     public function setCliValues($filename, $config)
     {
@@ -436,7 +441,7 @@ abstract class AbstractSniffUnitTest extends \PHPUnit_Framework_TestCase
      * The key of the array should represent the line number and the value
      * should represent the number of warnings that should occur on that line.
      *
-     * @return array(int => int)
+     * @return array<int, int>
      */
     abstract protected function getWarningList();
 

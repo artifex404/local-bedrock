@@ -543,7 +543,10 @@ class PHP extends Tokenizer
                 Parse doc blocks into something that can be easily iterated over.
             */
 
-            if ($tokenIsArray === true && $token[0] === T_DOC_COMMENT) {
+            if ($tokenIsArray === true
+                && ($token[0] === T_DOC_COMMENT
+                || ($token[0] === T_COMMENT && strpos($token[1], '/**') === 0))
+            ) {
                 $commentTokens = $commentTokenizer->tokenizeString($token[1], $this->eolChar, $newStackPtr);
                 foreach ($commentTokens as $commentToken) {
                     $finalTokens[$newStackPtr] = $commentToken;
@@ -725,6 +728,72 @@ class PHP extends Tokenizer
                 $newStackPtr++;
 
                 // Continue, as we're done with this token.
+                continue;
+            }//end if
+
+            /*
+                Before PHP 7.0, the "yield from" was tokenized as
+                T_YIELD, T_WHITESPACE and T_STRING. So look for
+                and change this token in earlier versions.
+            */
+
+            if (PHP_VERSION_ID < 70000
+                && PHP_VERSION_ID >= 50500
+                && $tokenIsArray === true
+                && $token[0] === T_YIELD
+                && isset($tokens[($stackPtr + 1)]) === true
+                && isset($tokens[($stackPtr + 2)]) === true
+                && $tokens[($stackPtr + 1)][0] === T_WHITESPACE
+                && $tokens[($stackPtr + 2)][0] === T_STRING
+                && strtolower($tokens[($stackPtr + 2)][1]) === 'from'
+            ) {
+                $newToken            = array();
+                $newToken['code']    = T_YIELD_FROM;
+                $newToken['type']    = 'T_YIELD_FROM';
+                $newToken['content'] = $token[1].$tokens[($stackPtr + 1)][1].$tokens[($stackPtr + 2)][1];
+                $finalTokens[$newStackPtr] = $newToken;
+
+                $newStackPtr++;
+                $stackPtr += 2;
+                continue;
+            }
+
+            /*
+                Before PHP 5.5, the yield keyword was tokenized as
+                T_STRING. So look for and change this token in
+                earlier versions.
+                Checks also if it is just "yield" or "yield from".
+            */
+
+            if (PHP_VERSION_ID < 50500
+                && $tokenIsArray === true
+                && $token[0] === T_STRING
+                && strtolower($token[1]) === 'yield'
+            ) {
+                if (isset($tokens[($stackPtr + 1)]) === true
+                    && isset($tokens[($stackPtr + 2)]) === true
+                    && $tokens[($stackPtr + 1)][0] === T_WHITESPACE
+                    && $tokens[($stackPtr + 2)][0] === T_STRING
+                    && strtolower($tokens[($stackPtr + 2)][1]) === 'from'
+                ) {
+                    $newToken            = array();
+                    $newToken['code']    = T_YIELD_FROM;
+                    $newToken['type']    = 'T_YIELD_FROM';
+                    $newToken['content'] = $token[1].$tokens[($stackPtr + 1)][1].$tokens[($stackPtr + 2)][1];
+                    $finalTokens[$newStackPtr] = $newToken;
+
+                    $newStackPtr++;
+                    $stackPtr += 2;
+                    continue;
+                }
+
+                $newToken            = array();
+                $newToken['code']    = T_YIELD;
+                $newToken['type']    = 'T_YIELD';
+                $newToken['content'] = $token[1];
+                $finalTokens[$newStackPtr] = $newToken;
+
+                $newStackPtr++;
                 continue;
             }//end if
 

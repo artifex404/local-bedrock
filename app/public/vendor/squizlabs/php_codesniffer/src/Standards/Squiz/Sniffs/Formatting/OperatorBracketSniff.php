@@ -113,6 +113,20 @@ class OperatorBracketSniff implements Sniff
             }
         }
 
+        if ($tokens[$stackPtr]['code'] === T_BITWISE_OR
+            && isset($tokens[$stackPtr]['nested_parenthesis']) === true
+        ) {
+            $brackets    = $tokens[$stackPtr]['nested_parenthesis'];
+            $lastBracket = array_pop($brackets);
+            if (isset($tokens[$lastBracket]['parenthesis_owner']) === true
+                && $tokens[$tokens[$lastBracket]['parenthesis_owner']]['code'] === T_CATCH
+            ) {
+                // This is a pipe character inside a catch statement, so it is acting
+                // as an exception type seperator and not an arithmetic operation.
+                return;
+            }
+        }
+
         // Tokens that are allowed inside a bracketed operation.
         $allowed = array(
                     T_VARIABLE,
@@ -266,6 +280,7 @@ class OperatorBracketSniff implements Sniff
                     T_DNUMBER         => true,
                     T_STRING          => true,
                     T_WHITESPACE      => true,
+                    T_NS_SEPARATOR    => true,
                     T_THIS            => true,
                     T_SELF            => true,
                     T_OBJECT_OPERATOR => true,
@@ -302,6 +317,11 @@ class OperatorBracketSniff implements Sniff
                 continue;
             }
 
+            if ($tokens[$before]['code'] === T_CLOSE_SHORT_ARRAY) {
+                $before = $tokens[$before]['bracket_opener'];
+                continue;
+            }
+
             break;
         }//end for
 
@@ -329,6 +349,11 @@ class OperatorBracketSniff implements Sniff
             }
 
             if ($tokens[$after]['code'] === T_OPEN_SQUARE_BRACKET) {
+                $after = $tokens[$after]['bracket_closer'];
+                continue;
+            }
+
+            if ($tokens[$after]['code'] === T_OPEN_SHORT_ARRAY) {
                 $after = $tokens[$after]['bracket_closer'];
                 continue;
             }

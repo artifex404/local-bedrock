@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit889bcd4c501b0a2c4a7542d2c04ab54d
+class ComposerStaticInita30973443923104426cece4e168949f8
 {
     public static $files = array (
         '841f98c5d948ce534a6f87abe5b50614' => __DIR__ . '/..' . '/roots/wp-password-bcrypt/wp-password-bcrypt.php',
@@ -52,9 +52,9 @@ class ComposerStaticInit889bcd4c501b0a2c4a7542d2c04ab54d
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit889bcd4c501b0a2c4a7542d2c04ab54d::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit889bcd4c501b0a2c4a7542d2c04ab54d::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit889bcd4c501b0a2c4a7542d2c04ab54d::$prefixesPsr0;
+            $loader->prefixLengthsPsr4 = ComposerStaticInita30973443923104426cece4e168949f8::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita30973443923104426cece4e168949f8::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInita30973443923104426cece4e168949f8::$prefixesPsr0;
 
         }, null, ClassLoader::class);
     }
