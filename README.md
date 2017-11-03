@@ -9,6 +9,7 @@ Local Bedrock is a site boilerplate for [Local by Flywheel](https://local.getfly
 4. Drag and drop `local-bedrock.zip` to the Local by Flywheel application window.
 5. Enter details for your new site. Make sure to select a **Custom environment** along with **Nginx**.
 6. Update `WP_HOME` variable in `app/public/.env` of the newly created site path. Enter the selected domain in the step 5. 
+7. Generate new site salts from [https://roots.io/salts.html](https://roots.io/salts.html) and replace the existing ones in `app/public/.env`.
 
 Now you have a fully working WordPress Bedrock site on Local by Flywheel.
 
