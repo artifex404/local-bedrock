@@ -36,7 +36,7 @@ If during the site import you chose another domain than the original `local-bedr
 
 The items still having the old domain are: `wp_posts` sample posts **guid**, and `wp_options` **siteurl** and **home** variables.
 
-It is not crucial to change the siteurl and home variables values in the dadabase, and the **.env** configuration files override them. 
+It is not crucial to change the siteurl and home variables values in the database, since the **.env** configuration file override them. 
 
 However, if you want to clean up the old domain name:
 
