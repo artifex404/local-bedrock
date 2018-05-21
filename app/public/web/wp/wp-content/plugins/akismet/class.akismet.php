@@ -30,6 +30,7 @@ class Akismet {
 
 		add_action( 'akismet_scheduled_delete', array( 'Akismet', 'delete_old_comments' ) );
 		add_action( 'akismet_scheduled_delete', array( 'Akismet', 'delete_old_comments_meta' ) );
+		add_action( 'akismet_scheduled_delete', array( 'Akismet', 'delete_orphaned_commentmeta' ) );
 		add_action( 'akismet_schedule_cron_recheck', array( 'Akismet', 'cron_recheck' ) );
 
 		add_action( 'comment_form',  array( 'Akismet',  'add_comment_nonce' ), 1 );
@@ -37,6 +38,7 @@ class Akismet {
 		add_action( 'admin_head-edit-comments.php', array( 'Akismet', 'load_form_js' ) );
 		add_action( 'comment_form', array( 'Akismet', 'load_form_js' ) );
 		add_action( 'comment_form', array( 'Akismet', 'inject_ak_js' ) );
+		add_filter( 'script_loader_tag', array( 'Akismet', 'set_form_js_async' ), 10, 3 );
 
 		add_filter( 'comment_moderation_recipients', array( 'Akismet', 'disable_moderation_emails_if_unreachable' ), 1000, 2 );
 		add_filter( 'pre_comment_approved', array( 'Akismet', 'last_comment_status' ), 10, 2 );
@@ -347,6 +349,7 @@ class Akismet {
 
 			foreach ( $comment_ids as $comment_id ) {
 				do_action( 'delete_comment', $comment_id );
+				do_action( 'akismet_batch_delete_count', __FUNCTION__ );
 			}
 
 			// Prepared as strings since comment_id is an unsigned BIGINT, and using %d will constrain the value to the maximum signed BIGINT.
@@ -368,7 +371,7 @@ class Akismet {
 
 		$interval = apply_filters( 'akismet_delete_commentmeta_interval', 15 );
 
-		# enfore a minimum of 1 day
+		# enforce a minimum of 1 day
 		$interval = absint( $interval );
 		if ( $interval < 1 )
 			$interval = 1;
@@ -383,9 +386,47 @@ class Akismet {
 
 			foreach ( $comment_ids as $comment_id ) {
 				delete_comment_meta( $comment_id, 'akismet_as_submitted' );
+				do_action( 'akismet_batch_delete_count', __FUNCTION__ );
 			}
 
 			do_action( 'akismet_delete_commentmeta_batch', count( $comment_ids ) );
+		}
+
+		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11), $wpdb->commentmeta ) ) // lucky number
+			$wpdb->query("OPTIMIZE TABLE {$wpdb->commentmeta}");
+	}
+
+	// Clear out comments meta that no longer have corresponding comments in the database
+	public static function delete_orphaned_commentmeta() {
+		global $wpdb;
+
+		$last_meta_id = 0;
+		$start_time = isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? $_SERVER['REQUEST_TIME_FLOAT'] : microtime( true );
+		$max_exec_time = max( ini_get('max_execution_time') - 5, 3 );
+
+		while ( $commentmeta_results = $wpdb->get_results( $wpdb->prepare( "SELECT m.meta_id, m.comment_id, m.meta_key FROM {$wpdb->commentmeta} as m LEFT JOIN {$wpdb->comments} as c USING(comment_id) WHERE c.comment_id IS NULL AND m.meta_id > %d ORDER BY m.meta_id LIMIT 1000", $last_meta_id ) ) ) {
+			if ( empty( $commentmeta_results ) )
+				return;
+
+			$wpdb->queries = array();
+
+			$commentmeta_deleted = 0;
+
+			foreach ( $commentmeta_results as $commentmeta ) {
+				if ( 'akismet_' == substr( $commentmeta->meta_key, 0, 8 ) ) {
+					delete_comment_meta( $commentmeta->comment_id, $commentmeta->meta_key );
+					do_action( 'akismet_batch_delete_count', __FUNCTION__ );
+					$commentmeta_deleted++;
+				}
+
+				$last_meta_id = $commentmeta->meta_id;
+			}
+
+			do_action( 'akismet_delete_commentmeta_batch', $commentmeta_deleted );
+
+			// If we're getting close to max_execution_time, quit for this round.
+			if ( microtime(true) - $start_time > $max_exec_time )
+				return;
 		}
 
 		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11), $wpdb->commentmeta ) ) // lucky number
@@ -533,24 +574,36 @@ class Akismet {
 		if ( get_comment_meta( $comment->comment_ID, 'akismet_rechecking' ) )
 			return;
 		
-		global $current_user;
-		$reporter = '';
-		if ( is_object( $current_user ) )
-			$reporter = $current_user->user_login;
-
 		// Assumption alert:
 		// We want to submit comments to Akismet only when a moderator explicitly spams or approves it - not if the status
 		// is changed automatically by another plugin.  Unfortunately WordPress doesn't provide an unambiguous way to
 		// determine why the transition_comment_status action was triggered.  And there are several different ways by which
 		// to spam and unspam comments: bulk actions, ajax, links in moderation emails, the dashboard, and perhaps others.
 		// We'll assume that this is an explicit user action if certain POST/GET variables exist.
-		if ( ( isset( $_POST['status'] ) && in_array( $_POST['status'], array( 'spam', 'unspam' ) ) ) ||
-			 ( isset( $_POST['spam'] )   && (int) $_POST['spam'] == 1 ) ||
-			 ( isset( $_POST['unspam'] ) && (int) $_POST['unspam'] == 1 ) ||
-			 ( isset( $_POST['comment_status'] )  && in_array( $_POST['comment_status'], array( 'spam', 'unspam' ) ) ) ||
-			 ( isset( $_GET['action'] )  && in_array( $_GET['action'], array( 'spam', 'unspam', 'spamcomment', 'unspamcomment', ) ) ) ||
-			 ( isset( $_POST['action'] ) && in_array( $_POST['action'], array( 'editedcomment' ) ) ) ||
-			 ( isset( $_GET['for'] ) && ( 'jetpack' == $_GET['for'] ) ) // Moderation via WP.com notifications/WP app/etc.
+		if (
+			 // status=spam: Marking as spam via the REST API or...
+			 // status=unspam: I'm not sure. Maybe this used to be used instead of status=approved? Or the UI for removing from spam but not approving has been since removed?...
+			 // status=approved: Unspamming via the REST API (Calypso) or...
+			 ( isset( $_POST['status'] ) && in_array( $_POST['status'], array( 'spam', 'unspam', 'approved', ) ) )
+			 // spam=1: Clicking "Spam" underneath a comment in wp-admin and allowing the AJAX request to happen.
+			 || ( isset( $_POST['spam'] ) && (int) $_POST['spam'] == 1 )
+			 // unspam=1: Clicking "Not Spam" underneath a comment in wp-admin and allowing the AJAX request to happen. Or, clicking "Undo" after marking something as spam.
+			 || ( isset( $_POST['unspam'] ) && (int) $_POST['unspam'] == 1 )
+			 // comment_status=spam/unspam: It's unclear where this is happening.
+			 || ( isset( $_POST['comment_status'] )  && in_array( $_POST['comment_status'], array( 'spam', 'unspam' ) ) )
+			 // action=spam: Choosing "Mark as Spam" from the Bulk Actions dropdown in wp-admin (or the "Spam it" link in notification emails).
+			 // action=unspam: Choosing "Not Spam" from the Bulk Actions dropdown in wp-admin.
+			 // action=spamcomment: Following the "Spam" link below a comment in wp-admin (not allowing AJAX request to happen).
+			 // action=unspamcomment: Following the "Not Spam" link below a comment in wp-admin (not allowing AJAX request to happen).
+			 || ( isset( $_GET['action'] ) && in_array( $_GET['action'], array( 'spam', 'unspam', 'spamcomment', 'unspamcomment', ) ) )
+			 // action=editedcomment: Editing a comment via wp-admin (and possibly changing its status).
+			 || ( isset( $_POST['action'] ) && in_array( $_POST['action'], array( 'editedcomment' ) ) )
+			 // for=jetpack: Moderation via the WordPress app, Calypso, anything powered by the Jetpack connection.
+			 || ( isset( $_GET['for'] ) && ( 'jetpack' == $_GET['for'] ) && ( ! defined( 'IS_WPCOM' ) || ! IS_WPCOM ) ) 
+			 // Certain WordPress.com API requests
+			 || ( defined( 'REST_API_REQUEST' ) && REST_API_REQUEST )
+			 // WordPress.org REST API requests
+			 || ( defined( 'REST_REQUEST' ) && REST_REQUEST )
 		 ) {
 			if ( $new_status == 'spam' && ( $old_status == 'approved' || $old_status == 'unapproved' || !$old_status ) ) {
 				return self::submit_spam_comment( $comment->comment_ID );
@@ -688,7 +741,13 @@ class Akismet {
 		foreach ( (array) $comment_errors as $comment_id ) {
 			// if the comment no longer exists, or is too old, remove the meta entry from the queue to avoid getting stuck
 			$comment = get_comment( $comment_id );
-			if ( !$comment || strtotime( $comment->comment_date_gmt ) < strtotime( "-15 days" ) ) {
+
+			if (
+				! $comment // Comment has been deleted
+				|| strtotime( $comment->comment_date_gmt ) < strtotime( "-15 days" ) // Comment is too old.
+				|| $comment->comment_approved !== "0" // Comment is no longer in the Pending queue
+				) {
+				echo "Deleting";
 				delete_comment_meta( $comment_id, 'akismet_error' );
 				delete_comment_meta( $comment_id, 'akismet_delayed_moderation_email' );
 				continue;
@@ -1104,6 +1163,19 @@ class Akismet {
 		wp_enqueue_script( 'akismet-form' );
 	}
 	
+	/**
+	 * Mark form.js as async. Because nothing depends on it, it can run at any time
+	 * after it's loaded, and the browser won't have to wait for it to load to continue
+	 * parsing the rest of the page.
+	 */
+	public static function set_form_js_async( $tag, $handle, $src ) {
+		if ( 'akismet-form' !== $handle ) {
+			return $tag;
+		}
+		
+		return preg_replace( '/^<script /i', '<script async="async" ', $tag );
+	}
+	
 	public static function inject_ak_js( $fields ) {
 		echo '<p style="display: none;">';
 		echo '<input type="hidden" id="ak_js" name="ak_js" value="' . mt_rand( 0, 250 ) . '"/>';
@@ -1184,7 +1256,21 @@ p {
 	 * @static
 	 */
 	public static function plugin_deactivation( ) {
-		return self::deactivate_key( self::get_api_key() );
+		self::deactivate_key( self::get_api_key() );
+		
+		// Remove any scheduled cron jobs.
+		$akismet_cron_events = array(
+			'akismet_schedule_cron_recheck',
+			'akismet_scheduled_delete',
+		);
+		
+		foreach ( $akismet_cron_events as $akismet_cron_event ) {
+			$timestamp = wp_next_scheduled( $akismet_cron_event );
+			
+			if ( $timestamp ) {
+				wp_unschedule_event( $timestamp, $akismet_cron_event );
+			}
+		}
 	}
 	
 	/**
