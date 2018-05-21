@@ -8,7 +8,7 @@
   ],
   "type": "wordpress-core",
   "homepage": "http://wordpress.org/",
-  "license": "GPL-2.0+",
+  "license": "GPL-2.0-or-later",
   "authors": [
     {
       "name": "WordPress Community",
@@ -26,6 +26,6 @@
     "php": ">=5.3.2"
   },
   "provide": {
-    "wordpress/core-implementation": "4.8.3"
+    "wordpress/core-implementation": "4.9.6"
   }
 }

@@ -21,18 +21,6 @@ body {
 	word-wrap: break-word; /* Old syntax */
 }
 
-/* Changed in 4.6.0, see https://core.trac.wordpress.org/ticket/40743 */
-.mce-content-body p,
-.mce-content-body div,
-.mce-content-body h1,
-.mce-content-body h2,
-.mce-content-body h3,
-.mce-content-body h4,
-.mce-content-body h5,
-.mce-content-body h6 {
-    line-height: inherit;
-}
-
 body.rtl {
 	font-family: Tahoma, "Times New Roman", "Bitstream Charter", Times, serif;
 }
@@ -275,6 +263,11 @@ a[data-wplink-url-error]:before {
 	left: -2px;
 	outline: 2px dotted #fff;
 	z-index: -1;
+}
+
+/* Special styling for the suggestes policy text tutorial sections after they have been pasted in the editor. */
+p.wp-policy-help {
+    background-color: #ff0;
 }
 
 /**

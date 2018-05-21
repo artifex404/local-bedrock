@@ -201,7 +201,7 @@ if (TRUE) {
     $res  = 'bar';
 }
 
-// @codingStandardsChangeSetting Generic.Formatting.MultipleStatementAlignment maxPadding 8
+// phpcs:set Generic.Formatting.MultipleStatementAlignment maxPadding 8
 
 $one                = 'one';
 $varonetwo          = 'two';
@@ -215,7 +215,7 @@ $varonetwo .= 'two';
 $varonetwothree     = 'three';
 $varonetwothreefour = 'four';
 
-// @codingStandardsChangeSetting Generic.Formatting.MultipleStatementAlignment maxPadding 1000
+// phpcs:set Generic.Formatting.MultipleStatementAlignment maxPadding 1000
 
 $filterQuery = SquizRoadmap::getSearchQueryFilter($searchParams);
 Channels::addToBasket('itemid', $filterQuery);
@@ -232,3 +232,36 @@ $bar = 'hi';
 $foo = $moo = $test;
 $boo = 'boo';
 $foo = $moooo = 'foo';
+
+$foobarbaz = array_map(
+    function ($n) {
+        return $n * $n;
+    },
+    [1, 2, 3]
+);
+$foo       = 5;
+
+$loggerResult = $util->setLogger(new class {
+    public function log($msg)
+    {
+        echo $msg;
+    }
+});
+$foo          = 5;
+
+$foo = array(
+    'a' => 'b',
+);
+$barbar = 'bar';
+
+$foo = array(
+    // Some comment.
+    'a' => 'b',
+);
+$barbar = 'bar';
+
+$foo = [
+    // phpcs:ignore Standard.Category.Sniff.Code -- for reasons.
+    'a' => 'b',
+];
+$barbar = 'bar';

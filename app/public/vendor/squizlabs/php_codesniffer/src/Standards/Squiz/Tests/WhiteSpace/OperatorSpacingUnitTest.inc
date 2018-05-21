@@ -140,7 +140,7 @@ $y = 1
 + 2
 - 3;
 
-// @codingStandardsChangeSetting Squiz.WhiteSpace.OperatorSpacing ignoreNewlines true
+// phpcs:set Squiz.WhiteSpace.OperatorSpacing ignoreNewlines true
 $y = 1
    + 2
    - 3;
@@ -152,7 +152,7 @@ $y = 1 +
 $y = 1
 + 2
 - 3;
-// @codingStandardsChangeSetting Squiz.WhiteSpace.OperatorSpacing ignoreNewlines false
+// phpcs:set Squiz.WhiteSpace.OperatorSpacing ignoreNewlines false
 
 if (true || -1 == $b) {
 }
@@ -217,3 +217,21 @@ Hooks::run( 'ParserOptionsRegister', [
 	&self::$inCacheKey,
 	&self::$lazyOptions,
 ] );
+
+$x = $foo ? function (): int {
+    return 1;
+} : $bar;
+
+$x = $foo ? function ($foo)
+    // comment
+    : int {
+    return 1;
+} : $bar;
+
+$x = $foo ? function ($foo) use /* comment */ ($bar): int {
+    return 1;
+} : $bar;
+
+$x = !$foo ? $bar : function (): int {
+    return 1;
+};

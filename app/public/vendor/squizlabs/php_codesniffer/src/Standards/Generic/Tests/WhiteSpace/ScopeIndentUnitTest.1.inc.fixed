@@ -1,4 +1,4 @@
-@codingStandardsChangeSetting Generic.WhiteSpace.ScopeIndent tabIndent false
+phpcs:set Generic.WhiteSpace.ScopeIndent tabIndent false
 <meta name="twitter:site" content="<?php echo $metaTagsData['twitter:site']; ?>">
 <?php
 class Test {
@@ -1227,6 +1227,22 @@ switch ($sContext) {
         do_something();
     }
 }
+
+array_map(
+    static function ( $item ) {
+        echo $item;
+    },
+    $some_array
+);
+
+/**
+ * Comment.
+ */
+(function () use ($app) {
+    echo 'hi';
+})();
+
+$app->run();
 
 public function foo()
 {
