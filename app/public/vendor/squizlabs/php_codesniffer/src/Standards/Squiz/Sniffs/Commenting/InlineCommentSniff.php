@@ -292,6 +292,27 @@ class InlineCommentSniff implements Sniff
                 return;
             }
 
+            if ($tokens[$next]['code'] === T_DOC_COMMENT_OPEN_TAG) {
+                // If this inline comment is followed by a docblock,
+                // ignore spacing as docblock/function etc spacing rules
+                // are likely to conflict with our rules.
+                return;
+            }
+
+            $errorCode = 'SpacingAfter';
+
+            if (isset($tokens[$stackPtr]['conditions']) === true) {
+                $conditions   = $tokens[$stackPtr]['conditions'];
+                $type         = end($conditions);
+                $conditionPtr = key($conditions);
+
+                if (($type === T_FUNCTION || $type === T_CLOSURE)
+                    && $tokens[$conditionPtr]['scope_closer'] === $next
+                ) {
+                    $errorCode = 'SpacingAfterAtFunctionEnd';
+                }
+            }
+
             for ($i = ($stackPtr + 1); $i < $phpcsFile->numTokens; $i++) {
                 if ($tokens[$i]['line'] === ($tokens[$stackPtr]['line'] + 1)) {
                     if ($tokens[$i]['code'] !== T_WHITESPACE) {
@@ -303,7 +324,7 @@ class InlineCommentSniff implements Sniff
             }
 
             $error = 'There must be no blank line following an inline comment';
-            $fix   = $phpcsFile->addFixableError($error, $stackPtr, 'SpacingAfter');
+            $fix   = $phpcsFile->addFixableError($error, $stackPtr, $errorCode);
             if ($fix === true) {
                 $phpcsFile->fixer->beginChangeset();
                 for ($i = ($stackPtr + 1); $i < $next; $i++) {

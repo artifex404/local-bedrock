@@ -1,4 +1,5 @@
 <?php
+[$a, [$b]] = $array;
 
 function test()
 {
@@ -10,7 +11,6 @@ function test()
             'a' => 1,
          ];
 }
-
 
 class TestClass
 {
@@ -340,3 +340,36 @@ EOD
 echo [1][0];
 echo 'PHP'[0];
 echo [1][0, 1, 2]; // not valid code, but should not be picked up here
+
+$x = [
+    'a' => false];
+
+$x = [
+    'xxxx'   => ['aaaaaaaaaa' => 'ccccccccccc',
+                 'bbbbbbbb'   => false],
+];
+
+$foo = ['foo' => ['bar1'  => 1
+                ,'bar2'   => 1
+                ,'bar3'   => 1
+                ,'bar4'   => 1
+                ,'bar5'   => 1
+                ]
+        ];
+
+$foo = [
+        '1' => $row['status'] === 'rejected'
+            ? self::REJECTED_CODE
+            : self::VERIFIED_CODE,
+        '2' => in_array($row['status'], ['notverified', 'unverified'], true)
+            ? self::STATUS_PENDING
+            : self::STATUS_VERIFIED,
+        '3' => strtotime($row['date']),
+       ];
+
+
+$foo = foo(
+    [
+    // comment
+    ]
+);

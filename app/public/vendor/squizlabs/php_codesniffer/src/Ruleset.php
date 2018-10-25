@@ -945,21 +945,43 @@ class Ruleset
                     if (isset($prop['type']) === true
                         && (string) $prop['type'] === 'array'
                     ) {
-                        $value  = (string) $prop['value'];
                         $values = [];
-                        foreach (explode(',', $value) as $val) {
-                            list($k, $v) = explode('=>', $val.'=>');
-                            if ($v !== '') {
-                                $values[trim($k)] = trim($v);
-                            } else {
-                                $values[] = trim($k);
+                        if (isset($prop->element) === true) {
+                            $printValue = '';
+                            foreach ($prop->element as $element) {
+                                if ($this->shouldProcessElement($element) === false) {
+                                    continue;
+                                }
+
+                                $value = (string) $element['value'];
+                                if (isset($element['key']) === true) {
+                                    $key          = (string) $element['key'];
+                                    $values[$key] = $value;
+                                    $printValue  .= $key.'=>'.$value.',';
+                                } else {
+                                    $values[]    = $value;
+                                    $printValue .= $value.',';
+                                }
                             }
-                        }
+
+                            $printValue = rtrim($printValue, ',');
+                        } else {
+                            $value      = (string) $prop['value'];
+                            $printValue = $value;
+                            foreach (explode(',', $value) as $val) {
+                                list($k, $v) = explode('=>', $val.'=>');
+                                if ($v !== '') {
+                                    $values[trim($k)] = trim($v);
+                                } else {
+                                    $values[] = trim($k);
+                                }
+                            }
+                        }//end if
 
                         $this->ruleset[$code]['properties'][$name] = $values;
                         if (PHP_CODESNIFFER_VERBOSITY > 1) {
                             echo str_repeat("\t", $depth);
-                            echo "\t\t=> array property \"$name\" set to \"$value\"";
+                            echo "\t\t=> array property \"$name\" set to \"$printValue\"";
                             if ($code !== $ref) {
                                 echo " for $code";
                             }
@@ -1241,11 +1263,30 @@ class Ruleset
             $value = trim($value);
         }
 
+        if ($value === '') {
+            $value = null;
+        }
+
         // Special case for booleans.
         if ($value === 'true') {
             $value = true;
         } else if ($value === 'false') {
             $value = false;
+        } else if (substr($name, -2) === '[]') {
+            $name   = substr($name, 0, -2);
+            $values = [];
+            if ($value !== null) {
+                foreach (explode(',', $value) as $val) {
+                    list($k, $v) = explode('=>', $val.'=>');
+                    if ($v !== '') {
+                        $values[trim($k)] = trim($v);
+                    } else {
+                        $values[] = trim($k);
+                    }
+                }
+            }
+
+            $value = $values;
         }
 
         $this->sniffs[$sniffClass]->$name = $value;

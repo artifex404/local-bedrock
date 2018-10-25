@@ -251,15 +251,22 @@ class ControlSignatureSniff implements Sniff
         }//end if
 
         // Only want to check multi-keyword structures from here on.
-        if ($tokens[$stackPtr]['code'] === T_DO) {
-            if (isset($tokens[$stackPtr]['scope_closer']) === false) {
+        if ($tokens[$stackPtr]['code'] === T_WHILE) {
+            if (isset($tokens[$stackPtr]['scope_closer']) !== false) {
                 return;
             }
 
-            $closer = $tokens[$stackPtr]['scope_closer'];
+            $closer = $phpcsFile->findPrevious(Tokens::$emptyTokens, ($stackPtr - 1), null, true);
+            if ($closer === false
+                || $tokens[$closer]['code'] !== T_CLOSE_CURLY_BRACKET
+                || $tokens[$tokens[$closer]['scope_condition']]['code'] !== T_DO
+            ) {
+                return;
+            }
         } else if ($tokens[$stackPtr]['code'] === T_ELSE
             || $tokens[$stackPtr]['code'] === T_ELSEIF
             || $tokens[$stackPtr]['code'] === T_CATCH
+            || $tokens[$stackPtr]['code'] === T_FINALLY
         ) {
             if (isset($tokens[$stackPtr]['scope_opener']) === true
                 && $tokens[$tokens[$stackPtr]['scope_opener']]['code'] === T_COLON
@@ -281,18 +288,23 @@ class ControlSignatureSniff implements Sniff
         $found = 1;
         if ($tokens[($closer + 1)]['code'] !== T_WHITESPACE) {
             $found = 0;
+        } else if ($tokens[$closer]['line'] !== $tokens[$stackPtr]['line']) {
+            $found = 'newline';
         } else if ($tokens[($closer + 1)]['content'] !== ' ') {
-            if (strpos($tokens[($closer + 1)]['content'], $phpcsFile->eolChar) !== false) {
-                $found = 'newline';
-            } else {
-                $found = strlen($tokens[($closer + 1)]['content']);
-            }
+            $found = strlen($tokens[($closer + 1)]['content']);
         }
 
         if ($found !== 1) {
             $error = 'Expected 1 space after closing brace; %s found';
             $data  = [$found];
-            $fix   = $phpcsFile->addFixableError($error, $closer, 'SpaceAfterCloseBrace', $data);
+
+            if ($phpcsFile->findNext(Tokens::$commentTokens, ($closer + 1), $stackPtr) !== false) {
+                // Comment found between closing brace and keyword, don't auto-fix.
+                $phpcsFile->addError($error, $closer, 'SpaceAfterCloseBrace', $data);
+                return;
+            }
+
+            $fix = $phpcsFile->addFixableError($error, $closer, 'SpaceAfterCloseBrace', $data);
             if ($fix === true) {
                 if ($found === 0) {
                     $phpcsFile->fixer->addContent($closer, ' ');

@@ -11,12 +11,19 @@ PHP\_CodeSniffer requires PHP version 5.4.0 or greater, although individual snif
 ## Installation
 
 The easiest way to get started with PHP\_CodeSniffer is to download the Phar files for each of the commands:
+```
+# Download using curl
+curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
+curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar
 
-    curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
-    php phpcs.phar -h
+# Or download using wget
+wget https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
+wget https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar
 
-    curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar
-    php phpcbf.phar -h
+# Then test the downloaded PHARs
+php phpcs.phar -h
+php phpcbf.phar -h
+```
 
 ### Composer
 If you use Composer, you can install PHP_CodeSniffer system-wide with the following command:
@@ -75,3 +82,26 @@ Bug reports and feature requests can be submitted on the [Github Issue Tracker](
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for information.
+
+## Versioning
+
+PHP_CodeSniffer uses a `MAJOR.MINOR.PATCH` version number format.
+
+The `MAJOR` version is incremented when:
+- backwards-incompatible changes are made to how the `phpcs` or `phpcbf` commands are used, or
+- backwards-incompatible changes are made to the `ruleset.xml` format, or
+- backwards-incompatible changes are made to the API used by sniff developers, or
+- custom PHP_CodeSniffer token types are removed
+
+The `MINOR` version is incremented when:
+- new backwards-compatible features are added to the `phpcs` and `phpcbf` commands, or
+- backwards-compatible changes are made to the `ruleset.xml` format, or
+- backwards-compatible changes are made to the API used by sniff developers, or
+- new sniffs are added to an included standard
+
+> NOTE: Backwards-compatible changes to the API used by sniff develpers will allow an exsiting sniff to continue running without producing fatal errors but may not result in the sniff reporting the same errors as it did previously without changes being required.
+
+The `PATCH` version is incremented when:
+- backwards-compatible bug fixes are made
+
+> NOTE: As PHP_CodeSniffer exists to report and fix issues, most bugs are the result of coding standard errors being incorrectly reported or coding standard errors not being reported when they should be. This means that the messages produced by PHP_CodeSniffer, and the fixes it makes, are likely to be different between PATCH versions.

@@ -970,6 +970,90 @@ class ErrorSuppressionTest extends TestCase
         $this->assertEquals(1, $numWarnings);
         $this->assertCount(1, $warnings);
 
+        // Suppress a whole standard and re-enable a category.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic.Commenting'.PHP_EOL.'//TODO: write some code';
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(0, $numErrors);
+        $this->assertCount(0, $errors);
+        $this->assertEquals(1, $numWarnings);
+        $this->assertCount(1, $warnings);
+
+        // Suppress a category and re-enable a whole standard.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic.Commenting'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic'.PHP_EOL.'//TODO: write some code';
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(1, $numErrors);
+        $this->assertCount(1, $errors);
+        $this->assertEquals(1, $numWarnings);
+        $this->assertCount(1, $warnings);
+
+        // Suppress a sniff and re-enable a category.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic.Commenting.Todo'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic.Commenting'.PHP_EOL.'//TODO: write some code';
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(1, $numErrors);
+        $this->assertCount(1, $errors);
+        $this->assertEquals(1, $numWarnings);
+        $this->assertCount(1, $warnings);
+
+        // Suppress a whole standard and re-enable a sniff.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic.Commenting.Todo'.PHP_EOL.'//TODO: write some code';
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(0, $numErrors);
+        $this->assertCount(0, $errors);
+        $this->assertEquals(1, $numWarnings);
+        $this->assertCount(1, $warnings);
+
+        // Suppress a whole standard and re-enable and re-disable a sniff.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic.Commenting.Todo'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:disable Generic.Commenting.Todo'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable'.PHP_EOL.'//TODO: write some code';
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(0, $numErrors);
+        $this->assertCount(0, $errors);
+        $this->assertEquals(2, $numWarnings);
+        $this->assertCount(2, $warnings);
+
+        // Suppress a whole standard and re-enable 2 specific sniffs independently.
+        $content = '<?php '.PHP_EOL.'// phpcs:disable Generic'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'// phpcs:enable Generic.Commenting.Todo'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'$var = FALSE;'.PHP_EOL.'// phpcs:enable Generic.PHP.LowerCaseConstant'.PHP_EOL.'//TODO: write some code'.PHP_EOL.'$var = FALSE;'.PHP_EOL;
+        $file    = new DummyFile($content, $ruleset, $config);
+        $file->process();
+
+        $errors      = $file->getErrors();
+        $numErrors   = $file->getErrorCount();
+        $warnings    = $file->getWarnings();
+        $numWarnings = $file->getWarningCount();
+        $this->assertEquals(1, $numErrors);
+        $this->assertCount(1, $errors);
+        $this->assertEquals(2, $numWarnings);
+        $this->assertCount(2, $warnings);
+
     }//end testEnableSelected()
 
 

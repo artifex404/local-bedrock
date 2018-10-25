@@ -50,7 +50,7 @@ class File
     /**
      * If TRUE, the entire file is being ignored.
      *
-     * @var string
+     * @var boolean
      */
     public $ignored = false;
 
@@ -74,6 +74,13 @@ class File
      * @var \PHP_CodeSniffer\Tokenizers\Tokenizer
      */
     public $tokenizer = null;
+
+    /**
+     * The name of the tokenizer being used for this file.
+     *
+     * @var string
+     */
+    public $tokenizerType = 'PHP';
 
     /**
      * Was the file loaded from cache?
@@ -239,7 +246,8 @@ class File
         $this->configCache['errorSeverity']   = $this->config->errorSeverity;
         $this->configCache['warningSeverity'] = $this->config->warningSeverity;
         $this->configCache['recordErrors']    = $this->config->recordErrors;
-        $this->configCache['ignorePatterns']  = $this->ruleset->getIgnorePatterns();
+        $this->configCache['ignorePatterns']  = $this->ruleset->ignorePatterns;
+        $this->configCache['includePatterns'] = $this->ruleset->includePatterns;
 
     }//end __construct()
 
@@ -351,9 +359,9 @@ class File
                         $start   = strpos($commentText, '@codingStandardsChangeSetting');
                         $comment = substr($commentText, ($start + 30));
                         $parts   = explode(' ', $comment);
-                        if ($parts >= 3) {
+                        if (count($parts) >= 2) {
                             $sniffParts = explode('.', $parts[0]);
-                            if ($sniffParts >= 3) {
+                            if (count($sniffParts) >= 3) {
                                 // If the sniff code is not known to us, it has not been registered in this run.
                                 // But don't throw an error as it could be there for a different standard to use.
                                 if (isset($this->ruleset->sniffCodes[$parts[0]]) === true) {
@@ -387,9 +395,9 @@ class File
 
                     // Need to maintain case here, to get the correct sniff code.
                     $parts = explode(' ', substr($commentText, 10));
-                    if ($parts >= 3) {
+                    if (count($parts) >= 2) {
                         $sniffParts = explode('.', $parts[0]);
-                        if ($sniffParts >= 3) {
+                        if (count($sniffParts) >= 3) {
                             // If the sniff code is not known to us, it has not been registered in this run.
                             // But don't throw an error as it could be there for a different standard to use.
                             if (isset($this->ruleset->sniffCodes[$parts[0]]) === true) {
@@ -826,7 +834,7 @@ class File
     protected function addMessage($error, $message, $line, $column, $code, $data, $severity, $fixable)
     {
         // Check if this line is ignoring all message codes.
-        if (isset($this->tokenizer->ignoredLines[$line]['all']) === true) {
+        if (isset($this->tokenizer->ignoredLines[$line]['.all']) === true) {
             return false;
         }
 
@@ -856,12 +864,32 @@ class File
             ];
         }//end if
 
-        // Check if this line is ignoring this specific message.
-        foreach ($checkCodes as $checkCode) {
-            if (isset($this->tokenizer->ignoredLines[$line][$checkCode]) === true) {
+        if (isset($this->tokenizer->ignoredLines[$line]) === true) {
+            // Check if this line is ignoring this specific message.
+            $ignored = false;
+            foreach ($checkCodes as $checkCode) {
+                if (isset($this->tokenizer->ignoredLines[$line][$checkCode]) === true) {
+                    $ignored = true;
+                    break;
+                }
+            }
+
+            // If it is ignored, make sure it's not whitelisted.
+            if ($ignored === true
+                && isset($this->tokenizer->ignoredLines[$line]['.except']) === true
+            ) {
+                foreach ($checkCodes as $checkCode) {
+                    if (isset($this->tokenizer->ignoredLines[$line]['.except'][$checkCode]) === true) {
+                        $ignored = false;
+                        break;
+                    }
+                }
+            }
+
+            if ($ignored === true) {
                 return false;
             }
-        }
+        }//end if
 
         $includeAll = true;
         if ($this->configCache['cache'] === false
@@ -937,11 +965,21 @@ class File
 
         // Make sure we are not ignoring this file.
         foreach ($checkCodes as $checkCode) {
-            if (isset($this->configCache['ignorePatterns'][$checkCode]) === false) {
+            $patterns = null;
+
+            if (isset($this->configCache['includePatterns'][$checkCode]) === true) {
+                $patterns  = $this->configCache['includePatterns'][$checkCode];
+                $excluding = false;
+            } else if (isset($this->configCache['ignorePatterns'][$checkCode]) === true) {
+                $patterns  = $this->configCache['ignorePatterns'][$checkCode];
+                $excluding = true;
+            }
+
+            if ($patterns === null) {
                 continue;
             }
 
-            foreach ($this->configCache['ignorePatterns'][$checkCode] as $pattern => $type) {
+            foreach ($patterns as $pattern => $type) {
                 // While there is support for a type of each pattern
                 // (absolute or relative) we don't actually support it here.
                 $replacements = [
@@ -957,7 +995,11 @@ class File
                 }
 
                 $pattern = '`'.strtr($pattern, $replacements).'`i';
-                if (preg_match($pattern, $this->path) === 1) {
+                $matched = preg_match($pattern, $this->path);
+                if (($matched === 1 && $excluding === true)
+                    || ($matched === 0 && $excluding === false)
+                ) {
+                    // This file path is being excluded, or not included.
                     $this->ignoredCodes[$checkCode] = true;
                     return false;
                 }
@@ -1224,6 +1266,8 @@ class File
      *         'pass_by_reference' => boolean, // Is the variable passed by reference?
      *         'variable_length'   => boolean, // Is the param of variable length through use of `...` ?
      *         'type_hint'         => string,  // The type hint for the variable.
+     *         'type_hint_token'   => integer, // The stack pointer to the type hint
+     *                                         // or false if there is no type hint.
      *         'nullable_type'     => boolean, // Is the variable using a nullable type?
      *        )
      * </code>
@@ -1257,6 +1301,7 @@ class File
         $passByReference = false;
         $variableLength  = false;
         $typeHint        = '';
+        $typeHintToken   = false;
         $nullableType    = false;
 
         for ($i = $paramStart; $i <= $closer; $i++) {
@@ -1290,8 +1335,11 @@ class File
             case T_ELLIPSIS:
                 $variableLength = true;
                 break;
-            case T_ARRAY_HINT:
             case T_CALLABLE:
+                if ($typeHintToken === false) {
+                    $typeHintToken = $i;
+                }
+
                 $typeHint .= $this->tokens[$i]['content'];
                 break;
             case T_SELF:
@@ -1299,6 +1347,10 @@ class File
             case T_STATIC:
                 // Self is valid, the others invalid, but were probably intended as type hints.
                 if (isset($defaultStart) === false) {
+                    if ($typeHintToken === false) {
+                        $typeHintToken = $i;
+                    }
+
                     $typeHint .= $this->tokens[$i]['content'];
                 }
                 break;
@@ -1328,12 +1380,20 @@ class File
                 }
 
                 if ($defaultStart === null) {
+                    if ($typeHintToken === false) {
+                        $typeHintToken = $i;
+                    }
+
                     $typeHint .= $this->tokens[$i]['content'];
                 }
                 break;
             case T_NS_SEPARATOR:
                 // Part of a type hint or default value.
                 if ($defaultStart === null) {
+                    if ($typeHintToken === false) {
+                        $typeHintToken = $i;
+                    }
+
                     $typeHint .= $this->tokens[$i]['content'];
                 }
                 break;
@@ -1348,7 +1408,7 @@ class File
                 // If it's null, then there must be no parameters for this
                 // method.
                 if ($currVar === null) {
-                    continue;
+                    continue 2;
                 }
 
                 $vars[$paramCount]            = [];
@@ -1363,6 +1423,7 @@ class File
                 $vars[$paramCount]['pass_by_reference'] = $passByReference;
                 $vars[$paramCount]['variable_length']   = $variableLength;
                 $vars[$paramCount]['type_hint']         = $typeHint;
+                $vars[$paramCount]['type_hint_token']   = $typeHintToken;
                 $vars[$paramCount]['nullable_type']     = $nullableType;
 
                 // Reset the vars, as we are about to process the next parameter.
@@ -1371,6 +1432,7 @@ class File
                 $passByReference = false;
                 $variableLength  = false;
                 $typeHint        = '';
+                $typeHintToken   = false;
                 $nullableType    = false;
 
                 $paramCount++;
@@ -1392,11 +1454,15 @@ class File
      * The format of the array is:
      * <code>
      *   array(
-     *    'scope'           => 'public', // public protected or protected
-     *    'scope_specified' => true,     // true is scope keyword was found.
-     *    'is_abstract'     => false,    // true if the abstract keyword was found.
-     *    'is_final'        => false,    // true if the final keyword was found.
-     *    'is_static'       => false,    // true if the static keyword was found.
+     *    'scope'                => 'public', // public protected or protected
+     *    'scope_specified'      => true,     // true is scope keyword was found.
+     *    'return_type'          => '',       // the return type of the method.
+     *    'return_type_token'    => integer,  // The stack pointer to the start of the return type
+     *                                        // or false if there is no return type.
+     *    'nullable_return_type' => false,    // true if the return type is nullable.
+     *    'is_abstract'          => false,    // true if the abstract keyword was found.
+     *    'is_final'             => false,    // true if the final keyword was found.
+     *    'is_static'            => false,    // true if the static keyword was found.
      *   );
      * </code>
      *
@@ -1472,12 +1538,59 @@ class File
             }//end switch
         }//end for
 
+        $returnType         = '';
+        $returnTypeToken    = false;
+        $nullableReturnType = false;
+
+        if (isset($this->tokens[$stackPtr]['parenthesis_closer']) === true) {
+            $scopeOpener = null;
+            if (isset($this->tokens[$stackPtr]['scope_opener']) === true) {
+                $scopeOpener = $this->tokens[$stackPtr]['scope_opener'];
+            }
+
+            $valid = [
+                T_STRING       => T_STRING,
+                T_CALLABLE     => T_CALLABLE,
+                T_SELF         => T_SELF,
+                T_PARENT       => T_PARENT,
+                T_NS_SEPARATOR => T_NS_SEPARATOR,
+            ];
+
+            for ($i = $this->tokens[$stackPtr]['parenthesis_closer']; $i < $this->numTokens; $i++) {
+                if (($scopeOpener === null && $this->tokens[$i]['code'] === T_SEMICOLON)
+                    || ($scopeOpener !== null && $i === $scopeOpener)
+                ) {
+                    // End of function definition.
+                    break;
+                }
+
+                if ($this->tokens[$i]['code'] === T_NULLABLE) {
+                    $nullableReturnType = true;
+                }
+
+                if (isset($valid[$this->tokens[$i]['code']]) === true) {
+                    if ($returnTypeToken === false) {
+                        $returnTypeToken = $i;
+                    }
+
+                    $returnType .= $this->tokens[$i]['content'];
+                }
+            }
+        }//end if
+
+        if ($returnType !== '' && $nullableReturnType === true) {
+            $returnType = '?'.$returnType;
+        }
+
         return [
-            'scope'           => $scope,
-            'scope_specified' => $scopeSpecified,
-            'is_abstract'     => $isAbstract,
-            'is_final'        => $isFinal,
-            'is_static'       => $isStatic,
+            'scope'                => $scope,
+            'scope_specified'      => $scopeSpecified,
+            'return_type'          => $returnType,
+            'return_type_token'    => $returnTypeToken,
+            'nullable_return_type' => $nullableReturnType,
+            'is_abstract'          => $isAbstract,
+            'is_final'             => $isFinal,
+            'is_static'            => $isStatic,
         ];
 
     }//end getMethodProperties()
@@ -1491,8 +1604,9 @@ class File
      *
      * <code>
      *   array(
-     *    'scope'       => 'public', // public protected or protected
-     *    'is_static'   => false,    // true if the static keyword was found.
+     *    'scope'           => 'public', // public protected or protected.
+     *    'scope_specified' => false,    // true if the scope was explicitely specified.
+     *    'is_static'       => false,    // true if the static keyword was found.
      *   );
      * </code>
      *
@@ -1537,22 +1651,29 @@ class File
         }
 
         $valid = [
-            T_PUBLIC      => T_PUBLIC,
-            T_PRIVATE     => T_PRIVATE,
-            T_PROTECTED   => T_PROTECTED,
-            T_STATIC      => T_STATIC,
-            T_WHITESPACE  => T_WHITESPACE,
-            T_COMMENT     => T_COMMENT,
-            T_DOC_COMMENT => T_DOC_COMMENT,
-            T_VARIABLE    => T_VARIABLE,
-            T_COMMA       => T_COMMA,
+            T_PUBLIC    => T_PUBLIC,
+            T_PRIVATE   => T_PRIVATE,
+            T_PROTECTED => T_PROTECTED,
+            T_STATIC    => T_STATIC,
+            T_VAR       => T_VAR,
         ];
+
+        $valid += Util\Tokens::$emptyTokens;
 
         $scope          = 'public';
         $scopeSpecified = false;
         $isStatic       = false;
 
-        for ($i = ($stackPtr - 1); $i > 0; $i--) {
+        $startOfStatement = $this->findPrevious(
+            [
+                T_SEMICOLON,
+                T_OPEN_CURLY_BRACKET,
+                T_CLOSE_CURLY_BRACKET,
+            ],
+            ($stackPtr - 1)
+        );
+
+        for ($i = ($startOfStatement + 1); $i < $stackPtr; $i++) {
             if (isset($valid[$this->tokens[$i]['code']]) === false) {
                 break;
             }
@@ -1781,12 +1902,14 @@ class File
      * Returns the content of the tokens from the specified start position in
      * the token stack for the specified length.
      *
-     * @param int $start  The position to start from in the token stack.
-     * @param int $length The length of tokens to traverse from the start pos.
+     * @param int $start       The position to start from in the token stack.
+     * @param int $length      The length of tokens to traverse from the start pos.
+     * @param int $origContent Whether the original content or the tab replaced
+     *                         content should be used.
      *
      * @return string The token contents.
      */
-    public function getTokensAsString($start, $length)
+    public function getTokensAsString($start, $length, $origContent=false)
     {
         $str = '';
         $end = ($start + $length);
@@ -1795,7 +1918,13 @@ class File
         }
 
         for ($i = $start; $i < $end; $i++) {
-            $str .= $this->tokens[$i]['content'];
+            // If tabs are being converted to spaces by the tokeniser, the
+            // original content should be used instead of the converted content.
+            if ($origContent === true && isset($this->tokens[$i]['orig_content']) === true) {
+                $str .= $this->tokens[$i]['orig_content'];
+            } else {
+                $str .= $this->tokens[$i]['content'];
+            }
         }
 
         return $str;
@@ -2071,6 +2200,10 @@ class File
                 && ($i === $this->tokens[$i]['scope_opener']
                 || $i === $this->tokens[$i]['scope_condition'])
             ) {
+                if ($i === $start && isset(Util\Tokens::$scopeOpeners[$this->tokens[$i]['code']]) === true) {
+                    return $this->tokens[$i]['scope_closer'];
+                }
+
                 $i = $this->tokens[$i]['scope_closer'];
             } else if (isset($this->tokens[$i]['bracket_closer']) === true
                 && $i === $this->tokens[$i]['bracket_opener']

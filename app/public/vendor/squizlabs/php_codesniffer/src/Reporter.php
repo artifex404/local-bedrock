@@ -99,12 +99,11 @@ class Reporter
         $this->config = $config;
 
         foreach ($config->reports as $type => $output) {
-            $type = ucfirst($type);
-
             if ($output === null) {
                 $output = $config->reportFile;
             }
 
+            $reportClassName = '';
             if (strpos($type, '.') !== false) {
                 // This is a path to a custom report class.
                 $filename = realpath($type);
@@ -114,8 +113,32 @@ class Reporter
                 }
 
                 $reportClassName = Autoload::loadFile($filename);
+            } else if (class_exists('PHP_CodeSniffer\Reports\\'.ucfirst($type)) === true) {
+                // PHPCS native report.
+                $reportClassName = 'PHP_CodeSniffer\Reports\\'.ucfirst($type);
+            } else if (class_exists($type) === true) {
+                // FQN of a custom report.
+                $reportClassName = $type;
             } else {
-                $reportClassName = 'PHP_CodeSniffer\Reports\\'.$type;
+                // OK, so not a FQN, try and find the report using the registered namespaces.
+                $registeredNamespaces = Autoload::getSearchPaths();
+                $trimmedType          = ltrim($type, '\\');
+
+                foreach ($registeredNamespaces as $nsPrefix) {
+                    if ($nsPrefix === '') {
+                        continue;
+                    }
+
+                    if (class_exists($nsPrefix.'\\'.$trimmedType) === true) {
+                        $reportClassName = $nsPrefix.'\\'.$trimmedType;
+                        break;
+                    }
+                }
+            }//end if
+
+            if ($reportClassName === '') {
+                $error = "ERROR: Class file for report \"$type\" not found".PHP_EOL;
+                throw new DeepExitException($error, 3);
             }
 
             $reportClass = new $reportClassName();
@@ -175,7 +198,6 @@ class Reporter
      */
     public function printReport($report)
     {
-        $report      = ucfirst($report);
         $reportClass = $this->reports[$report]['class'];
         $reportFile  = $this->reports[$report]['output'];
 
