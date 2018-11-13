@@ -11,12 +11,13 @@ Those instructions are tested with the latest stable Local by Flywheel version a
 3. If you're on mac, you can use `open .` to open the current folder in Finder.
 4. Drag and drop `local-bedrock.zip` to the Local by Flywheel application window.
 5. Enter details for your new site. Make sure to select a **Custom environment** along with **Nginx**.
-6. Update `WP_HOME` variable in `app/public/.env` of the newly created site path. Enter the selected domain in the step 5. 
-7. Generate new site salts from [https://roots.io/salts.html](https://roots.io/salts.html) and replace the existing ones in `app/public/.env`.
-8. Click the right mouse on the newly created site entry in Local by Flywheel and select **Open Site SSH**.
-9. Copy and paste the following command to the opened terminal and press enter: `sed -i "s/root \/app\/public\/\;/root \/app\/public\/web\/;/g" /etc/nginx/wordpress/site.conf`
-10. Copy and paste the following command too to fix the WP-CLI path: `sed -i "s/\/app\/public/\/app\/public\/web/g" /wp-cli.yml`
-11. Restart the newly created site by clicking first the green dot near the newly created site to stop and once stopped the gray dot to start.
+6. Proceed with the import. If the import gets stuck. Select *Restart Local Machine* from the *Help* menu and proceed with the next steps after the restart.
+7. Update `WP_HOME` variable in `app/public/.env` of the newly created site path. Enter the selected domain in the step 5. 
+8. Generate new site salts from [https://roots.io/salts.html](https://roots.io/salts.html) and replace the existing ones in `app/public/.env`.
+9. Click the right mouse on the newly created site entry in Local by Flywheel and select **Open Site SSH**.
+10. Copy and paste the following command to the opened terminal and press enter: `sed -i "s/root \/app\/public\/\;/root \/app\/public\/web\/;/g" /etc/nginx/wordpress/site.conf`
+11. Copy and paste the following command too to fix the WP-CLI path: `sed -i "s/\/app\/public/\/app\/public\/web/g" /wp-cli.yml`
+12. Restart the newly created site by clicking first the green dot near the newly created site to stop and once stopped the gray dot to start.
 
 Now you have a fully working WordPress Bedrock site on Local by Flywheel.
 
