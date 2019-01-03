@@ -2,7 +2,7 @@
 Local Bedrock is a site boilerplate for [Local by Flywheel](https://local.getflywheel.com/) to quickly create a new site with [Roots.io Bedrock](https://roots.io/bedrock/) WordPress installation. 
 
 ## Compatibility
-Those instructions are tested with the latest stable Local by Flywheel version and the latest Local Environment. As time of writing those are 2.4.3 and 1.3.1 respectively.
+Those instructions are tested with the latest stable Local by Flywheel version and the latest Local Environment. As time of writing those are 3.0.2 and 1.3.1 respectively.
 
 ## Installation
 
